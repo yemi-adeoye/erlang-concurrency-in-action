@@ -3,19 +3,35 @@
 
 start(Foodlist) ->
     io:format("Processess started!"),
-    spawn(?MODULE, conc, [Foodlist]).
+    spawn(?MODULE, loop, [Foodlist]).
 
-loop(Foodlist) -> 
+loop(FoodList) -> 
     receive
         {From, {append, Food}} ->
+            From ! {self(), ok},
             loop([Food|FoodList]);
         {From, {get, Food}} -> 
-            case list:member(Food, FoodList) of
+            case lists:member(Food, FoodList) of
                 true ->
-                    From ! {}
+                    From ! {self(), Food},
+                    loop(lists:delete(Food, FoodList));
+                false ->
+                    From ! {self(), not_found},
+                    loop(FoodList)
+            end;
+        terminate ->
+            ok
+    end.
+            
 
 append(Pid, Food) ->
-    io:format("Appending ~p~n", [Food]),
+    Pid ! {self(), {append, Food}},
     receive
-        {Pid, Food} -> Food
+        {Pid, Response} -> Response
+    end.
+
+get(Pid, Food) -> 
+    Pid ! {self(), {get, Food}},
+    receive
+        {Pid, Response} -> Response
     end.
